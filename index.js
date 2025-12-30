@@ -22,8 +22,6 @@ app.get("/", (req, res) => {
 
 //handle memory storage for meetings 
 const meetings = new Map()
-const waitingForMeetings = new Map()
-
 
 
 io.on("connection", (socket) => {
