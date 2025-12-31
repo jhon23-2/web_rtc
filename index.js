@@ -128,12 +128,12 @@ io.on("connection", (socket) => {
         // notify all user in the room that one use is leave the meeting 
         io.to(meetingId).emit("participant-left", {
           participantId: socket.id,
-          participants: participants.length
+          participants: meeting.participants.length
         })
 
-        // if everybody letf the room or the meeting clean up the meeting room 
+        // if everybody letf the room or the meeting, clean up the meeting room 
 
-        if (meeting.participant.length === 0) {
+        if (meeting.participants.length === 0) {
           setTimeout(() => {
             if (meetings.get(meetingId)?.participants.length === 0) {
               meetings.delete(meetingId)
