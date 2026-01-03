@@ -27,7 +27,7 @@ The application uses **WebRTC** (Web Real-Time Communication) for peer-to-peer v
 The `useSocket` hook establishes a connection to your Socket.IO server:
 
 ```javascript
-const { socket, isConnected } = useSocket("http://localhost:5001");
+const { socket, isConnected } = useSocket("http://localhost:3000");
 ```
 
 - Connects to the server on port 5001
