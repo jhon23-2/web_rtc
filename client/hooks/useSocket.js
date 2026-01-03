@@ -34,10 +34,10 @@ export const useSocket = (serverUrl = "http://localhost:3000") => {
       console.log("Socket disconnected to the server: ", newSocket.id)
       setIsConnected(false)
     })
-    
+
     newSocket.on(EVENTS_SOCKET.ERROR, (error) => {
       console.log("Socket Error: ", error)
-      setError(error)
+      setError("Socket Connection Error")
     })
 
 
