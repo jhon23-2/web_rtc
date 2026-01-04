@@ -19,6 +19,27 @@ app.get("/", (req, res) => {
 })
 
 
+io.on("connection", (socket) => {
+  console.log("Client Connected ", socket.id)
+
+  socket.emit("send-id", { id: socket.id, createdAt: new Date() })
+
+
+  // main funtionality 
+  socket.on("call-user", ({ userId, signal, from, userName }) => {
+    io.to(userId).emit("call-user", ({ signal, from, userName })) // only send to that specific user 
+  })
+
+  socket.on("answer-call", ({ to, signal }) => {
+    io.to(to).emit("answer-call", signal)
+  })
+
+  // when user disconnected to the server 
+  socket.on("disconnect", () => {
+    socket.broadcast.emit("call-ended", { id: socket.id })
+  })
+})
+
 
 server.listen(PORT, () => {
   console.log("Server listen on " + PORT)
