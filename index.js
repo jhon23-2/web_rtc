@@ -6,7 +6,6 @@ require("dotenv").config()
 
 const PORT = process.env.SERVER_PORT || 5001
 
-
 const io = socketIO(server, {
   cors: {
     origin: "http://localhost:5173",
