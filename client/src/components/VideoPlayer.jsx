@@ -74,19 +74,17 @@ const VideoPlayer = () => {
 
     // Handle incoming tracks
     peerConnection.ontrack = (event) => {
-      console.log("✅ Received remote track:", event.track.kind);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
-        console.log("📺 Setting remote video stream");
       }
       setInCall(true);
       setConnectionStatus("connected");
     };
 
-    // Handle ICE candidates
+    // Handle ICE (Interactive Connectivity Establishment) candidates when connection is established
     peerConnection.onicecandidate = (event) => {
       if (event.candidate && remotePeerIdRef.current) {
-        console.log("📤 Sending ICE candidate");
+        console.log("Sending ICE candidate ", remotePeerIdRef);
         socket.emit("ice-candidate", {
           candidate: event.candidate,
           to: remotePeerIdRef.current,
@@ -96,21 +94,18 @@ const VideoPlayer = () => {
 
     // Monitor connection state changes
     peerConnection.onconnectionstatechange = () => {
-      console.log("🔗 Connection state:", peerConnection.connectionState);
+      console.log("Connection state:", peerConnection.connectionState);
       if (peerConnection.connectionState === "connected") {
         setInCall(true);
         setConnectionStatus("connected");
       } else if (peerConnection.connectionState === "failed") {
         setConnectionStatus("failed");
-        console.log("❌ Connection failed");
+        console.log("Connection failed");
       }
     };
 
     peerConnection.oniceconnectionstatechange = () => {
-      console.log(
-        "❄️ ICE Connection state:",
-        peerConnection.iceConnectionState
-      );
+      console.log("ICE Connection state:", peerConnection.iceConnectionState);
       if (peerConnection.iceConnectionState === "connected") {
         setInCall(true);
         setConnectionStatus("connected");
@@ -122,25 +117,25 @@ const VideoPlayer = () => {
 
   const createOffer = async () => {
     try {
-      console.log("📝 Creating offer...");
+      console.log("Creating offer...");
       const peerConnection = createPeerConnection();
 
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      console.log("📤 Sending offer");
+      console.log("Sending offer");
       socket.emit("offer", {
         offer: peerConnection.localDescription,
         to: remotePeerIdRef.current,
       });
     } catch (error) {
-      console.error("💥 Error creating offer:", error);
+      console.error("Error creating offer:", error);
     }
   };
 
   const createAnswer = async (offer) => {
     try {
-      console.log("📝 Creating answer");
+      console.log("Creating answer");
       const peerConnection = createPeerConnection();
 
       await peerConnection.setRemoteDescription(
@@ -149,13 +144,13 @@ const VideoPlayer = () => {
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
-      console.log("📤 Sending answer");
+      console.log("Sending answer");
       socket.emit("answer", {
         answer: peerConnection.localDescription,
         to: remotePeerIdRef.current,
       });
     } catch (error) {
-      console.error("💥 Error creating answer:", error);
+      console.error("Error creating answer:", error);
     }
   };
 
@@ -165,19 +160,19 @@ const VideoPlayer = () => {
     }
 
     socket.on("user-joined", (userId) => {
-      console.log("👥 User joined:", userId);
+      console.log("User joined:", userId);
       remotePeerIdRef.current = userId;
       setTimeout(() => createOffer(), 1000);
     });
 
     socket.on("offer", async ({ offer, from }) => {
-      console.log("📥 Received offer from:", from);
+      console.log("Received offer from:", from);
       remotePeerIdRef.current = from;
       await createAnswer(offer);
     });
 
     socket.on("answer", async ({ answer, from }) => {
-      console.log("📥 Received answer from:", from);
+      console.log("Received answer from:", from);
       remotePeerIdRef.current = from;
 
       if (peerConnectionRef.current) {
@@ -185,27 +180,26 @@ const VideoPlayer = () => {
           await peerConnectionRef.current.setRemoteDescription(
             new RTCSessionDescription(answer)
           );
-          console.log("✅ Remote description set successfully");
-          // Set inCall to true here as backup
+          console.log("Remote description set successfully");
           setInCall(true);
           setConnectionStatus("connected");
         } catch (error) {
-          console.error("💥 Error setting remote description:", error);
+          console.error("Error setting remote description:", error);
         }
       }
     });
 
     socket.on("ice-candidate", async ({ candidate, from }) => {
-      console.log("📥 Received ICE candidate from:", from);
+      console.log("Received ICE candidate from:", from);
 
       if (peerConnectionRef.current && candidate) {
         try {
           await peerConnectionRef.current.addIceCandidate(
             new RTCIceCandidate(candidate)
           );
-          console.log("✅ Added ICE candidate successfully");
+          console.log("Added ICE candidate successfully");
         } catch (error) {
-          console.error("💥 Error adding ICE candidate:", error);
+          console.error("Error adding ICE candidate:", error);
         }
       }
     });
@@ -218,7 +212,6 @@ const VideoPlayer = () => {
     };
   }, [socket, socketIsConnected, stream]);
 
-  // Debug info display
   const renderDebugInfo = () => (
     <div className="absolute top-0 left-0 bg-yellow-200 p-2 text-xs">
       Status: {connectionStatus} | In Call: {inCall ? "Yes" : "No"}
@@ -272,7 +265,6 @@ const VideoPlayer = () => {
             ></video>
           </div>
 
-          {/* Always show remote video container, but hide/show content based on inCall */}
           <div className="w-1/2 h-full">
             <h2 className="font-semibold text-gray-500 text-center">
               Remote Video {inCall ? "🟢" : "🔴"}
