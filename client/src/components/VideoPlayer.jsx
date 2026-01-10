@@ -1,11 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSocket } from "../hooks/useSocket";
 
+const MEETING_STATUS = {
+  CREATED: "created",
+  DISCONNECTED: "disconnected",
+  CONNECTED: "connected",
+  FAILED: "failed",
+};
+
 const VideoPlayer = () => {
   const [stream, setStream] = useState(null);
   const [roomId, setRoomId] = useState("");
   const [inCall, setInCall] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("disconnected"); // For debugging
+  const [localUsername, setLocalUsername] = useState("");
+  const [remoteUsername, setRemoteUsername] = useState("");
+  const [meetingStatus, setMeetingStatus] = useState(
+    MEETING_STATUS.DISCONNECTED
+  );
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -40,7 +51,16 @@ const VideoPlayer = () => {
       }
     };
 
-    getMediaDevices();
+    const setName = (name) => {
+      setLocalUsername(name);
+    };
+
+    const name = prompt("Type your name");
+
+    if (name) {
+      setName(name);
+      getMediaDevices();
+    }
 
     return () => {
       if (stream) {
@@ -55,7 +75,30 @@ const VideoPlayer = () => {
   const handleJoinRoom = () => {
     if (socket && roomId) {
       console.log("Joining room:", roomId);
-      socket.emit("join-room", roomId);
+      socket.emit("join-room", { roomId, username: localUsername });
+    }
+  };
+
+  const handleParticipantLeft = (participantId) => {
+    console.log("Cleaning up connection for participant:", participantId);
+
+    // Close peer connection if it belongs to this participant
+    if (
+      remotePeerIdRef.current === participantId &&
+      peerConnectionRef.current
+    ) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+      remotePeerIdRef.current = null;
+
+      // Reset UI state
+      setInCall(false);
+      setMeetingStatus(MEETING_STATUS.DISCONNECTED);
+
+      // Clear remote video
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
     }
   };
 
@@ -78,7 +121,7 @@ const VideoPlayer = () => {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
       setInCall(true);
-      setConnectionStatus("connected");
+      setMeetingStatus(MEETING_STATUS.CONNECTED);
     };
 
     // Handle ICE (Interactive Connectivity Establishment) candidates when connection is established
@@ -97,9 +140,9 @@ const VideoPlayer = () => {
       console.log("Connection state:", peerConnection.connectionState);
       if (peerConnection.connectionState === "connected") {
         setInCall(true);
-        setConnectionStatus("connected");
+        setMeetingStatus(MEETING_STATUS.CONNECTED);
       } else if (peerConnection.connectionState === "failed") {
-        setConnectionStatus("failed");
+        setMeetingStatus(MEETING_STATUS.FAILED);
         console.log("Connection failed");
       }
     };
@@ -108,7 +151,7 @@ const VideoPlayer = () => {
       console.log("ICE Connection state:", peerConnection.iceConnectionState);
       if (peerConnection.iceConnectionState === "connected") {
         setInCall(true);
-        setConnectionStatus("connected");
+        setMeetingStatus(MEETING_STATUS.CONNECTED);
       }
     };
 
@@ -159,10 +202,17 @@ const VideoPlayer = () => {
       return;
     }
 
-    socket.on("user-joined", (userId) => {
-      console.log("User joined:", userId);
+    socket.on("user-joined", ({ userId, username }) => {
+      console.log("User joined: ", { userId, username });
       remotePeerIdRef.current = userId;
+      setRemoteUsername(username);
       setTimeout(() => createOffer(), 1000);
+    });
+
+    socket.on("meeting-creted", ({ meeting }) => {
+      console.log("Meeting Created succesfully: ", meeting);
+      setInCall(false);
+      setMeetingStatus(MEETING_STATUS.CREATED);
     });
 
     socket.on("offer", async ({ offer, from }) => {
@@ -182,7 +232,7 @@ const VideoPlayer = () => {
           );
           console.log("Remote description set successfully");
           setInCall(true);
-          setConnectionStatus("connected");
+          setMeetingStatus(MEETING_STATUS.CONNECTED);
         } catch (error) {
           console.error("Error setting remote description:", error);
         }
@@ -204,17 +254,30 @@ const VideoPlayer = () => {
       }
     });
 
+    socket.on("participant-left", ({ participantId, participants }) => {
+      console.log(
+        "Participant left:",
+        participantId,
+        "Remaining:",
+        participants
+      );
+
+      handleParticipantLeft(participantId);
+    });
+
     return () => {
       socket.off("user-joined");
       socket.off("offer");
       socket.off("answer");
       socket.off("ice-candidate");
+      socket.off("meeting-creted");
+      socket.off("participant-left");
     };
   }, [socket, socketIsConnected, stream]);
 
   const renderDebugInfo = () => (
     <div className="absolute top-0 left-0 bg-yellow-200 p-2 text-xs">
-      Status: {connectionStatus} | In Call: {inCall ? "Yes" : "No"}
+      Status: {meetingStatus} | I Call: {inCall ? "Yes" : "No"}
     </div>
   );
 
@@ -254,7 +317,7 @@ const VideoPlayer = () => {
         <div className="w-full flex h-full gap-2">
           <div className="w-1/2 h-full">
             <h2 className="font-semibold text-gray-500 text-center">
-              Local Video
+              {localUsername || "Local Video"}
             </h2>
             <video
               className="w-full h-full bg-black"
@@ -267,7 +330,7 @@ const VideoPlayer = () => {
 
           <div className="w-1/2 h-full">
             <h2 className="font-semibold text-gray-500 text-center">
-              Remote Video {inCall ? "🟢" : "🔴"}
+              {`${remoteUsername || "Remote Video"} ${inCall ? "🟢" : "🔴"}`}
             </h2>
             <video
               className={`w-full h-full bg-black ${inCall ? "" : "hidden"}`}

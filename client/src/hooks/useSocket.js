@@ -8,7 +8,7 @@ const SOCKET_EVENTS = {
   ERROR: "connect_error"
 }
 
-export const useSocket = (serverUrl = "http://localhost:3001") => {
+export const useSocket = (serverUrl = "http://localhost:3000") => {
 
   const [socket, setSocket] = useState(null)
   const [socketError, setSocketError] = useState(null)
