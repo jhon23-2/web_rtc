@@ -1,7 +1,7 @@
-import VideoChat from "./components/VideoPlayer";
+import RoutesComponent from "./routes/Routes";
 
 function App() {
-  return <VideoChat />;
+  return <RoutesComponent />;
 }
 
 export default App;
