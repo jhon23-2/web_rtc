@@ -127,8 +127,9 @@ const VideoPlayer = () => {
     // Handle ICE (Interactive Connectivity Establishment) candidates when connection is established
     peerConnection.onicecandidate = (event) => {
       if (event.candidate && remotePeerIdRef.current) {
-        console.log("Sending ICE candidate ", remotePeerIdRef);
+        console.log("Sending ICE candidate ", remotePeerIdRef.current);
         socket.emit("ice-candidate", {
+          sender: localUsername,
           candidate: event.candidate,
           to: remotePeerIdRef.current,
         });
@@ -168,6 +169,7 @@ const VideoPlayer = () => {
 
       console.log("Sending offer");
       socket.emit("offer", {
+        sender: localUsername,
         offer: peerConnection.localDescription,
         to: remotePeerIdRef.current,
       });
@@ -191,6 +193,7 @@ const VideoPlayer = () => {
       socket.emit("answer", {
         answer: peerConnection.localDescription,
         to: remotePeerIdRef.current,
+        sender: localUsername,
       });
     } catch (error) {
       console.error("Error creating answer:", error);
@@ -215,14 +218,16 @@ const VideoPlayer = () => {
       setMeetingStatus(MEETING_STATUS.CREATED);
     });
 
-    socket.on("offer", async ({ offer, from }) => {
+    socket.on("offer", async ({ offer, from, sender }) => {
       console.log("Received offer from:", from);
       remotePeerIdRef.current = from;
+      setRemoteUsername(sender)
       await createAnswer(offer);
     });
 
-    socket.on("answer", async ({ answer, from }) => {
+    socket.on("answer", async ({ answer, from, sender }) => {
       console.log("Received answer from:", from);
+      setRemoteUsername(sender)
       remotePeerIdRef.current = from;
 
       if (peerConnectionRef.current) {
@@ -239,8 +244,8 @@ const VideoPlayer = () => {
       }
     });
 
-    socket.on("ice-candidate", async ({ candidate, from }) => {
-      console.log("Received ICE candidate from:", from);
+    socket.on("ice-candidate", async ({ candidate, from, sender }) => {
+      console.log("Received ICE candidate from:", { from, sender });
 
       if (peerConnectionRef.current && candidate) {
         try {

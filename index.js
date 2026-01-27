@@ -78,19 +78,19 @@ io.on('connection', (socket) => {
   });
 
 
-  socket.on('offer', ({ offer, to }) => {
+  socket.on('offer', ({ sender, offer, to }) => {
     console.log(`Sending offer from ${socket.id} to ${to}`);
-    io.to(to).emit('offer', { offer, from: socket.id });
+    io.to(to).emit('offer', { offer, from: socket.id, sender });
   });
 
-  socket.on('answer', ({ answer, to }) => {
+  socket.on('answer', ({ answer, to, sender }) => {
     console.log(`Sending answer from ${socket.id} to ${to}`);
-    io.to(to).emit('answer', { answer, from: socket.id });
+    io.to(to).emit('answer', { answer, from: socket.id, sender });
   });
 
-  socket.on('ice-candidate', ({ candidate, to }) => {
+  socket.on('ice-candidate', ({ candidate, to, sender }) => {
     console.log(`Sending ICE candidate from ${socket.id} to ${to}`);
-    io.to(to).emit('ice-candidate', { candidate, from: socket.id });
+    io.to(to).emit('ice-candidate', { candidate, from: socket.id, sender });
   });
 
   socket.on('disconnect', (reason) => {
