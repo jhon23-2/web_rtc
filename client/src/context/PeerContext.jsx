@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PeerContext } from '../hooks/usePeerContext';
 import { useSocket } from '../hooks/useSocket';
 import { CONFIGURATION, MEETING_STATUS } from "../tools/tools";
@@ -7,35 +8,23 @@ export const PeerContextProvider = ({ children }) => {
 
   const [stream, setStream] = useState(null)
   const [roomId, setRoomId] = useState("")
-  const [inCall, setInCall] = useState()
+  const [inCall, setInCall] = useState(false)
   const [localUsername, setLocalUsername] = useState("")
   const [remoteUsername, setRemoteUsername] = useState("")
   const [meetingStatus, setMeetingStatus] = useState(MEETING_STATUS.DISCONNECTED)
+  const [permissionsGranted, setPermissionsGranted] = useState(false); 
 
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
   const peerConnectionRef = useRef(null)
   const remotePeerIdRef = useRef(null) // store remote id
+  const navigate = useNavigate()
 
   const { socket, socketError, socketIsConnected } = useSocket();
 
-  //useEffect to set up media devices 
+
+  // Clean up on unmount
   useEffect(() => {
-    const getMediaDevices = async () => {
-      try {
-        const streamMediaDevices = await window.navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-        setStream(streamMediaDevices)
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = streamMediaDevices
-        }
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
-    getMediaDevices()
-
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
@@ -43,15 +32,38 @@ export const PeerContextProvider = ({ children }) => {
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
       }
-    }
-  }, [])
+    };
+  }, [stream]);
 
 
-  const handleJoinRoom = () => {
-    if (socket && roomId && localUsername.trim().length >= 1) {
-      console.log("Joining room:", roomId);
-      socket.emit("join-room", { roomId, username: localUsername });
+  const getMediaDevices = async () => {
+    try {
+      console.log("Requesting media devices...");
+      const streamMediaDevices = await window.navigator.mediaDevices.getUserMedia({ 
+        audio: true, 
+        video: true 
+      });
+      setStream(streamMediaDevices);
+      setPermissionsGranted(true); 
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = streamMediaDevices;
+      }
+      
+      return streamMediaDevices;
+    } catch (error) {
+      console.error("Error getting media devices:", error);
+      setMeetingStatus(MEETING_STATUS.PERMISSION_DENIED);
+      throw error;
     }
+  };
+
+
+  const handleJoinRoom =  () => {
+    if (!socket || !roomId.trim() || !localUsername.trim()) return;  
+    console.log("Joining room:", roomId);
+    socket.emit("join-room", { roomId, username: localUsername });
+    navigate("/meeting");
   };
 
   const handleParticipantLeft = (participantId) => {
@@ -141,10 +153,17 @@ export const PeerContextProvider = ({ children }) => {
       return peerConnection;
     };
 
+    const getOrCreatePeerConnection = () => {
+      if (!peerConnectionRef.current) {
+        peerConnectionRef.current = createPeerConnection();
+      }
+      return peerConnectionRef.current;
+    };
+
     const createOffer = async () => {
       try {
         console.log("Creating offer...");
-        const peerConnection = createPeerConnection();
+        const peerConnection = getOrCreatePeerConnection();
 
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
@@ -163,7 +182,7 @@ export const PeerContextProvider = ({ children }) => {
     const createAnswer = async (offer) => {
       try {
         console.log("Creating answer");
-        const peerConnection = createPeerConnection();
+        const peerConnection = getOrCreatePeerConnection();
 
         await peerConnection.setRemoteDescription(
           new RTCSessionDescription(offer)
@@ -270,7 +289,9 @@ export const PeerContextProvider = ({ children }) => {
     meetingStatus,
     socketError,
     localVideoRef,
-    remoteVideoRef
+    remoteVideoRef,
+    permissionsGranted,
+    getMediaDevices
   }
 
   return <PeerContext.Provider value={valuesProvider}>

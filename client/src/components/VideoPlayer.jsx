@@ -12,13 +12,22 @@ const VideoPlayer = () => {
     localUsername,
     remoteUsername,
     localVideoRef,
-    remoteVideoRef
+    remoteVideoRef,
+    roomId,
+    permissionsGranted,
+    getMediaDevices
   } = usePeerContext()
 
 
+  if( !permissionsGranted ) {
+    getMediaDevices()
+  }
+  
+ 
+
   const renderDebugInfo = () => (
     <div className="absolute top-0 left-0 bg-yellow-200 p-2 text-xs">
-      Status: {meetingStatus} | I Call: {inCall ? "Yes" : "No"}
+      Status: {meetingStatus} | In Call: {inCall ? "Yes" : "No"}
     </div>
   );
 
@@ -33,8 +42,16 @@ const VideoPlayer = () => {
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center relative">
       {renderDebugInfo()}
-      <h1 className="text-center font-bold text-3xl">Web RTC Application</h1>
 
+      <h1 className="text-center font-bold text-3xl">Web RTC Application</h1>
+      <div className="flex w-full items-start mt-3.5">
+        <label className="font-bold text-2xl">
+            Room id: 
+            <small className="font-semibold text-2xl text-gray-500"> {roomId}</small>
+        </label>
+      </div>
+
+      
       <div className="mt-24 w-full h-[calc(100vh-200px)] flex flex-col">
 
         <div className="w-full flex h-full gap-2">

@@ -3,6 +3,7 @@ export const MEETING_STATUS = {
   DISCONNECTED: "disconnected",
   CONNECTED: "connected",
   FAILED: "failed",
+  PERMISSION_DENIED: "denied"
 };
 
 export const CONFIGURATION = {

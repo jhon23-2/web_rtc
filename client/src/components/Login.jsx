@@ -16,6 +16,7 @@ import { usePeerContext } from '../hooks/usePeerContext'
               value={roomId} 
               onChange={(e) => {setRoomId(e.target.value)}} 
               placeholder='type room id' 
+              required
             />
           </label>
         </div>
@@ -24,9 +25,11 @@ import { usePeerContext } from '../hooks/usePeerContext'
           <label>
             Username:
             <input type="text"
-            value={localUsername}
-            onChange={(e) => {setLocalUsername(e.target.value)}} 
-            placeholder='type your username'/>
+              value={localUsername}
+              onChange={(e) => {setLocalUsername(e.target.value)}} 
+              placeholder='type your username'
+              required
+            />
           </label>
         </div>
 

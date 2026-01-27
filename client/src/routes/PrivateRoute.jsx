@@ -9,13 +9,11 @@ const PrivateRoute = ({children}) => {
   const isAuthenticated = roomId && roomId.trim().length > 5 && 
   localUsername && localUsername.trim().length > 5;
   
-  console.log({roomId,localUsername})
-
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
-  return children;
+  return children
    
 }
 
