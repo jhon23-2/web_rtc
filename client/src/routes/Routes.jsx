@@ -8,6 +8,7 @@ const RoutesComponent = () => {
   return (
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/call-end" element={<div className="w-screen h-screen justify-center items-center text-3xl font-semibold text-amber-600">Call Ended Thanks for use our Web RTC Application</div>} />
         <Route 
           path="/meeting" 
           element={

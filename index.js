@@ -105,7 +105,8 @@ io.on('connection', (socket) => {
 
         io.to(meetingId).emit("participant-left", {
           participantId: socket.id,
-          participants: meeting.participants.length
+          participants: meeting.participants.length,
+          username: meeting.participants.find(p => p.id === socket.id)?.name
         })
 
         if (meeting.participants.length === 0) {

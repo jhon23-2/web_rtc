@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { PeerContext } from '../hooks/usePeerContext';
 import { useSocket } from '../hooks/useSocket';
 import { CONFIGURATION, MEETING_STATUS } from "../tools/tools";
+
 
 export const PeerContextProvider = ({ children }) => {
 
@@ -14,6 +16,9 @@ export const PeerContextProvider = ({ children }) => {
   const [remoteUsername, setRemoteUsername] = useState("")
   const [meetingStatus, setMeetingStatus] = useState(MEETING_STATUS.DISCONNECTED)
   const [permissionsGranted, setPermissionsGranted] = useState(false); 
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
 
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
@@ -22,6 +27,24 @@ export const PeerContextProvider = ({ children }) => {
   const navigate = useNavigate()
 
   const { socket, socketError, socketIsConnected } = useSocket();
+
+  const toggleAudio = () => {
+    const audioTrack = stream.getAudioTracks()[0]
+
+    if(audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setIsMuted(!audioTrack.enabled);
+    }
+  }
+
+  const toggleVideo = () => {
+    const videoTrack = stream.getVideoTracks()[0]
+
+    if(videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsVideoOff(!videoTrack.enabled);
+    }
+  }
 
   const getMediaDevices = async () => {
     try {
@@ -49,7 +72,7 @@ export const PeerContextProvider = ({ children }) => {
     if (!socket || !roomId.trim() || !localUsername.trim()) return;  
     console.log("Joining room:", roomId);
     socket.emit("join-room", { roomId, username: localUsername });
-    navigate("/meeting");
+    navigate("/meeting", {replace: true});
   };
 
   const handleParticipantLeft = (participantId) => {
@@ -203,12 +226,34 @@ export const PeerContextProvider = ({ children }) => {
       remotePeerIdRef.current = userId;
       setRemoteUsername(username);
       setTimeout(() => createOffer(), 1000);
+
+      toast.info(`${username} join to your room 👤`, {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: false,
+        draggable: false,
+        progress: undefined,
+        theme: `${isDarkMode ? "dark" : "light" }`,
+        });
     });
 
     socket.on("meeting-creted", ({ meeting }) => {
       console.log("Meeting Created succesfully: ", meeting);
       setInCall(false);
       setMeetingStatus(MEETING_STATUS.CREATED);
+
+      toast.success('Room Created 🥳!', {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: false,
+        draggable: false,
+        progress: undefined,
+        theme: `${isDarkMode ? "dark" : "light" }`,
+        });
     });
 
     socket.on("offer", async ({ offer, from, sender }) => {
@@ -252,7 +297,7 @@ export const PeerContextProvider = ({ children }) => {
       }
     });
 
-    socket.on("participant-left", ({ participantId, participants }) => {
+    socket.on("participant-left", ({ participantId, participants, username }) => {
       console.log(
         "Participant left:",
         participantId,
@@ -261,6 +306,16 @@ export const PeerContextProvider = ({ children }) => {
       );
 
       handleParticipantLeft(participantId);
+      toast.info(`${username} Leave the Room 👋`, {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        });
     });
 
     return () => {
@@ -295,7 +350,13 @@ export const PeerContextProvider = ({ children }) => {
     localVideoRef,
     remoteVideoRef,
     permissionsGranted,
-    getMediaDevices
+    getMediaDevices,
+    isVideoOff,
+    isMuted,
+    toggleAudio,
+    toggleVideo,
+    isDarkMode,
+    setIsDarkMode
   }
 
   return <PeerContext.Provider value={valuesProvider}>
