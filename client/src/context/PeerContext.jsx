@@ -7,6 +7,7 @@ import { CONFIGURATION, MEETING_STATUS } from "../tools/tools";
 export const PeerContextProvider = ({ children }) => {
 
   const [stream, setStream] = useState(null)
+  const [remoteStream, setRemoteStream] = useState(null)
   const [roomId, setRoomId] = useState("")
   const [inCall, setInCall] = useState(false)
   const [localUsername, setLocalUsername] = useState("")
@@ -22,23 +23,9 @@ export const PeerContextProvider = ({ children }) => {
 
   const { socket, socketError, socketIsConnected } = useSocket();
 
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.close();
-      }
-    };
-  }, [stream]);
-
-
   const getMediaDevices = async () => {
     try {
-      console.log("Requesting media devices...");
+      
       const streamMediaDevices = await window.navigator.mediaDevices.getUserMedia({ 
         audio: true, 
         video: true 
@@ -57,7 +44,6 @@ export const PeerContextProvider = ({ children }) => {
       throw error;
     }
   };
-
 
   const handleJoinRoom =  () => {
     if (!socket || !roomId.trim() || !localUsername.trim()) return;  
@@ -89,6 +75,18 @@ export const PeerContextProvider = ({ children }) => {
     }
   };
 
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+    };
+  }, [stream]);
+
   // useEffect to listen socket event 
   useEffect(() => {
     if (!socket || !socketIsConnected) {
@@ -111,9 +109,7 @@ export const PeerContextProvider = ({ children }) => {
 
       // Handle incoming tracks
       peerConnection.ontrack = (event) => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
+        setRemoteStream(event.streams[0])
         setInCall(true);
         setMeetingStatus(MEETING_STATUS.CONNECTED);
       };
@@ -276,6 +272,14 @@ export const PeerContextProvider = ({ children }) => {
       socket.off("participant-left");
     };
   }, [socket, socketIsConnected, stream, localUsername]);
+
+  //useEffect to listen when remoteVideoRef is mounted  
+  useEffect(() => {
+    if(remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream
+    }
+  }, [remoteVideoRef, remoteStream])
+
 
   const valuesProvider = {
     handleJoinRoom,
