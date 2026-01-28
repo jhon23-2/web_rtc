@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { usePeerContext } from "../hooks/usePeerContext";
 
 
 const VideoPlayer = () => {
-  
+
+
+  const [copied, setCopied] = useState(false);
 
   const {
     meetingStatus,
@@ -13,7 +15,7 @@ const VideoPlayer = () => {
     remoteUsername,
     localVideoRef,
     remoteVideoRef,
-    roomId,
+    roomId, 
     permissionsGranted,
     getMediaDevices
   } = usePeerContext()
@@ -22,14 +24,23 @@ const VideoPlayer = () => {
   if( !permissionsGranted ) {
     getMediaDevices()
   }
+ 
+  
+  const handleCopyRoomId = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopied(true);
+  
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
   
  
 
-  const renderDebugInfo = () => (
-    <div className="absolute top-0 left-0 bg-yellow-200 p-2 text-xs">
-      Status: {meetingStatus} | In Call: {inCall ? "Yes" : "No"}
-    </div>
-  );
 
   if (socketError) {
     return (
@@ -41,17 +52,30 @@ const VideoPlayer = () => {
 
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center relative">
-      {renderDebugInfo()}
-
-      <h1 className="text-center font-bold text-3xl">Web RTC Application</h1>
-      <div className="flex w-full items-start mt-3.5">
-        <label className="font-bold text-2xl">
-            Room id: 
-            <small className="font-semibold text-2xl text-gray-500"> {roomId}</small>
-        </label>
+      <div className="absolute top-0 left-0 bg-yellow-200 p-2 text-xs">
+        Status: {meetingStatus} | In Call: {inCall ? "Yes" : "No"}
       </div>
 
-      
+      <h1 className="text-center font-bold text-3xl">Web RTC Application</h1>
+
+      <div className="flex items-start w-full mt-12 gap-3">
+  <label className="font-bold text-2xl">
+    Room id:
+    <small className="font-semibold text-2xl text-gray-500 ml-2">
+      {roomId}
+    </small>
+  </label>
+
+  <button
+    onClick={handleCopyRoomId}
+    className={`px-3 py-1 rounded text-sm font-semibold transition cursor-pointer
+      ${copied ? "bg-green-600 text-white" : "bg-blue-600 text-white"}
+    `}
+  >
+    {copied ? "Copied ✅" : "Copy"}
+  </button>
+</div>
+
       <div className="mt-24 w-full h-[calc(100vh-200px)] flex flex-col">
 
         <div className="w-full flex h-full gap-2">
@@ -78,12 +102,8 @@ const VideoPlayer = () => {
               playsInline
               ref={remoteVideoRef}
             ></video>
-            {!inCall && (
-              <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white">
-                Waiting for connection...
-              </div>
-            )}
-          </div>}
+          </div>
+          }
         </div>
       </div>
     </div>
