@@ -101,12 +101,14 @@ io.on('connection', (socket) => {
       const indexOfParticipantLeft = meeting.participants.findIndex(p => p.id === socket.id);
 
       if (indexOfParticipantLeft !== -1) {
+
+        const username = meeting.participants[indexOfParticipantLeft].name
         meeting.participants.splice(indexOfParticipantLeft, 1);
 
         io.to(meetingId).emit("participant-left", {
           participantId: socket.id,
           participants: meeting.participants.length,
-          username: meeting.participants.find(p => p.id === socket.id)?.name
+          username
         })
 
         if (meeting.participants.length === 0) {

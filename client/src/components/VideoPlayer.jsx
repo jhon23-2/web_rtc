@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { usePeerContext } from "../hooks/usePeerContext";
 
 
 const VideoPlayer = () => {
   const [copied, setCopied] = useState(false);
-  const navigate = useNavigate()
 
   const {
     meetingStatus,
@@ -267,7 +265,7 @@ const VideoPlayer = () => {
             <button onClick={() => {
               const leave = window.confirm("Are you sure, Leave to the room ? ")
               if(leave) {
-                navigate("/call-end", {replace: true})
+                window.location.reload()
               }
             }} className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-all shadow-lg hover:shadow-xl transform hover:scale-105">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
