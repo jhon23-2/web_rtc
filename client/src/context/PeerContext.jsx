@@ -19,6 +19,8 @@ export const PeerContextProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)

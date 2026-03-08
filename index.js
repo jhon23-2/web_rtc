@@ -93,6 +93,17 @@ io.on('connection', (socket) => {
     io.to(to).emit('ice-candidate', { candidate, from: socket.id, sender });
   });
 
+  socket.on('send-message', ({ roomId, message, username, senderId }) => {
+    console.log(`Message from ${username} (${senderId}) in room ${roomId}: ${message}`);
+    // Broadcast message to all participants in the room except the sender
+    socket.to(roomId).emit('message', { 
+      message, 
+      username, 
+      senderId,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   socket.on('disconnect', (reason) => {
     console.log("User Disconnected -> " + socket.id)
     console.log("Reason:", reason);
