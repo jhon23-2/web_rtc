@@ -3,12 +3,10 @@ services:
     name: web-rtc-app
     env: node
     plan: free
-    buildCommand: npm install && npm run build-client
+    buildCommand: npm install && cd client && npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: SERVER_PORT
         value: 10000
-      # CLIENT_URL will be set manually after deployment
-      # Or can be omitted since socket auto-detects same origin
