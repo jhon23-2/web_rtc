@@ -2,14 +2,32 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const path = require('path');
 require("dotenv").config()
 
 const app = express();
 app.use(cors());
 
-app.get("/", (req, res) => {
-  res.send("Server Socket Application is running succesfully 👾")
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'client/dist')));
+}
+
+// API route for health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", message: "Server Socket Application is running successfully 👾" });
 })
+
+// Serve React app for all other routes in production
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/dist/index.html'));
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.send("Server Socket Application is running successfully 👾")
+  })
+}
 
 const MEETING_STATUS = {
   CREATED: "created",
@@ -20,8 +38,11 @@ const MEETING_STATUS = {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: process.env.NODE_ENV === 'production'
+      ? process.env.CLIENT_URL || "*"
+      : "*",
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -96,9 +117,9 @@ io.on('connection', (socket) => {
   socket.on('send-message', ({ roomId, message, username, senderId }) => {
     console.log(`Message from ${username} (${senderId}) in room ${roomId}: ${message}`);
     // Broadcast message to all participants in the room except the sender
-    socket.to(roomId).emit('message', { 
-      message, 
-      username, 
+    socket.to(roomId).emit('message', {
+      message,
+      username,
       senderId,
       timestamp: new Date().toISOString()
     });

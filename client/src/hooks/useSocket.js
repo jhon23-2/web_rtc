@@ -8,7 +8,20 @@ const SOCKET_EVENTS = {
   ERROR: "connect_error"
 }
 
-export const useSocket = (serverUrl = "http://localhost:3000") => {
+// Auto-detect server URL: use env variable, or same origin in production, or localhost in dev
+const getServerUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  // In production, use the same origin (same domain)
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  // In development, default to localhost
+  return "http://localhost:5000";
+};
+
+export const useSocket = (serverUrl = getServerUrl()) => {
 
   const [socket, setSocket] = useState(null)
   const [socketError, setSocketError] = useState(null)

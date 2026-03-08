@@ -48,6 +48,28 @@ export const PeerContextProvider = ({ children }) => {
     }
   }
 
+  const sendMessage = (messageText) => {
+    if (!socket || !roomId || !messageText.trim()) return;
+    
+    const messageData = {
+      roomId,
+      message: messageText.trim(),
+      username: localUsername,
+      senderId: socket.id
+    };
+    
+    socket.emit('send-message', messageData);
+    
+    // Add message to local state immediately (optimistic update)
+    setMessages(prev => [...prev, {
+      message: messageText.trim(),
+      username: localUsername,
+      senderId: socket.id,
+      timestamp: new Date().toISOString(),
+      isOwn: true
+    }]);
+  }
+
   const getMediaDevices = async () => {
     try {
       
@@ -320,6 +342,17 @@ export const PeerContextProvider = ({ children }) => {
         });
     });
 
+    socket.on("message", ({ message, username, senderId, timestamp }) => {
+      console.log("Received message:", { message, username, senderId });
+      setMessages(prev => [...prev, {
+        message,
+        username,
+        senderId,
+        timestamp,
+        isOwn: false
+      }]);
+    });
+
     return () => {
       socket.off("user-joined");
       socket.off("offer");
@@ -327,6 +360,7 @@ export const PeerContextProvider = ({ children }) => {
       socket.off("ice-candidate");
       socket.off("meeting-creted");
       socket.off("participant-left");
+      socket.off("message");
     };
   }, [socket, socketIsConnected, stream, localUsername]);
 
@@ -358,7 +392,11 @@ export const PeerContextProvider = ({ children }) => {
     toggleAudio,
     toggleVideo,
     isDarkMode,
-    setIsDarkMode
+    setIsDarkMode,
+    messages,
+    sendMessage,
+    isChatOpen,
+    setIsChatOpen
   }
 
   return <PeerContext.Provider value={valuesProvider}>

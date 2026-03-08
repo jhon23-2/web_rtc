@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { usePeerContext } from "../hooks/usePeerContext";
 
 
 const VideoPlayer = () => {
   const [copied, setCopied] = useState(false);
+  const [messageInput, setMessageInput] = useState("");
+  const messagesEndRef = useRef(null);
 
   const {
     meetingStatus,
@@ -21,8 +23,17 @@ const VideoPlayer = () => {
     toggleAudio,
     toggleVideo,
     isDarkMode,
-    setIsDarkMode
+    setIsDarkMode,
+    messages,
+    sendMessage,
+    isChatOpen,
+    setIsChatOpen
   } = usePeerContext()
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
  
   
@@ -37,6 +48,19 @@ const VideoPlayer = () => {
     } catch (err) {
       console.error("Failed to copy:", err);
     }
+  };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (messageInput.trim()) {
+      sendMessage(messageInput);
+      setMessageInput("");
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   if (socketError) {
@@ -120,11 +144,11 @@ const VideoPlayer = () => {
       </div>
 
       {/* Video Container */}
-      <div className="flex-1 p-6 overflow-hidden">
-        <div className={`h-full flex gap-6 ${inCall ? "" : "justify-center items-center"}`}>
+      <div className="flex-1 p-6 overflow-hidden relative">
+        <div className={`h-full flex gap-6 ${inCall ? "" : "justify-center items-center"} ${isChatOpen ? "pr-0" : ""}`}>
           
           {/* Local Video */}
-          <div className={`${inCall ? "w-1/2" : "w-full max-w-4xl"} h-full flex flex-col`}>
+          <div className={`${inCall ? (isChatOpen ? "w-[calc(50%-12rem)]" : "w-1/2") : (isChatOpen ? "w-[calc(100%-24rem)]" : "w-full max-w-4xl")} h-full flex flex-col transition-all duration-300`}>
             <div className={`px-6 py-3 rounded-t-2xl flex items-center justify-between shadow-lg ${isDarkMode ? 'bg-linear-to-r from-gray-700 to-gray-800' : 'bg-linear-to-r from-gray-600 to-gray-700'}`}>
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></div>
@@ -186,7 +210,7 @@ const VideoPlayer = () => {
 
           {/* Remote Video - Only shows when in call */}
           {inCall && (
-            <div className="w-1/2 h-full flex flex-col">
+            <div className={`${isChatOpen ? "w-[calc(50%-12rem)]" : "w-1/2"} h-full flex flex-col transition-all duration-300`}>
               <div className="bg-linear-to-r from-purple-600 to-blue-600 px-6 py-3 rounded-t-2xl flex items-center justify-between shadow-lg">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></div>
@@ -204,14 +228,137 @@ const VideoPlayer = () => {
             </div>
           )}
         </div>
+
+        {/* Chat Panel */}
+        {isChatOpen && (
+          <div className={`absolute right-0 top-0 bottom-0 w-96 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-l shadow-2xl flex flex-col`}>
+            {/* Chat Header */}
+            <div className={`px-4 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center justify-between`}>
+              <div className="flex items-center gap-2">
+                <svg className={`w-5 h-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <h3 className={`font-bold text-lg ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Chat</h3>
+              </div>
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className={`p-2 rounded-lg hover:bg-gray-700 transition ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Messages List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.length === 0 ? (
+                <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <p className="text-sm">No messages yet. Start the conversation!</p>
+                </div>
+              ) : (
+                messages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+                      msg.isOwn
+                        ? isDarkMode
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-blue-500 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-700 text-gray-100'
+                          : 'bg-gray-200 text-gray-800'
+                    }`}>
+                      {!msg.isOwn && (
+                        <p className={`text-xs font-semibold mb-1 ${msg.isOwn ? 'text-blue-100' : isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {msg.username}
+                        </p>
+                      )}
+                      <p className="text-sm break-words">{msg.message}</p>
+                      <p className={`text-xs mt-1 ${msg.isOwn ? 'text-blue-100' : isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {formatTime(msg.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <form onSubmit={handleSendMessage} className={`p-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className={`flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                      : 'bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500'
+                  }`}
+                />
+                <button
+                  type="submit"
+                  disabled={!messageInput.trim()}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    messageInput.trim()
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-300 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
 
       {/* Bottom Control Bar - Redesigned */}
       <div className={`${isDarkMode ? 'bg-gray-800/95 border-gray-700' : 'bg-white/95 border-gray-200'} backdrop-blur-sm border-t px-8 py-5 shadow-lg`}>
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           
-          {/* Left Section - Theme Toggle */}
+          {/* Left Section - Theme Toggle & Chat Toggle */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all shadow-md hover:shadow-lg ${
+                isChatOpen
+                  ? isDarkMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : isDarkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <span className="text-sm font-semibold">{isChatOpen ? 'Close Chat' : 'Open Chat'}</span>
+              {messages.length > 0 && (
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  isChatOpen
+                    ? 'bg-white/20 text-white'
+                    : isDarkMode
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-blue-600 text-white'
+                }`}>
+                  {messages.length}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all shadow-md hover:shadow-lg ${

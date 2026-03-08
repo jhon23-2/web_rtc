@@ -8,4 +8,6 @@ export default defineConfig({
   define: {
     global: 'globalThis',
   },
+  // Use relative paths for production builds
+  base: './',
 })
