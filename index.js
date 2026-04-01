@@ -1,137 +1,147 @@
-const app = require("express")()
-const server = require("http").createServer(app)
-const cors = require("cors")
-const socketIO = require("socket.io")
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const path = require('path');
 require("dotenv").config()
 
-const PORT = process.env.SERVER_PORT || 5001
+const app = express();
+app.use(cors());
 
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'client/dist')));
+}
 
-const io = socketIO(server, {
+// API route for health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", message: "Server Socket Application is running successfully 👾" });
+})
+
+// Serve React app for all other routes in production
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/dist/index.html'));
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.send("Server Socket Application is running successfully 👾")
+  })
+}
+
+const MEETING_STATUS = {
+  CREATED: "created",
+  DISCONNECTED: "disconnected",
+  CONNECTED: "connected",
+};
+
+const server = http.createServer(app);
+const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"]
+    origin: process.env.NODE_ENV === 'production'
+      ? process.env.CLIENT_URL || "*"
+      : "*",
+    methods: ["GET", "POST"],
+    credentials: true
   }
-})
+});
 
-app.use(cors())
-app.get("/", (req, res) => {
-  res.send("Server Application is running succesfully 🥳")
-})
-// app.use(express.json()) -> in case any issue keep in mind this over here
-
-//handle memory storage for meetings 
 const meetings = new Map()
 
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
 
-io.on("connection", (socket) => {
-  console.log("User connecte -> " + socket.id)
+  socket.on('join-room', ({ roomId, username }) => {
 
-  // channel to create meeting   
-  socket.on("create-meeting", (data) => {
-    const { scheduledTime, creatorName } = data
-    const meetingId = generateMeetingId()
+    let meeting = {}
 
-    const meeting = {
-      id: meetingId,
-      scheduledTime,
-      creatorName,
-      createAt: new Date(),
-      participants: [],
-      status: "scheduled"
-    }
+    if (meetings.get(roomId)) {
+      meeting = meetings.get(roomId)
+      socket.join(roomId) // Room 
 
-    meetings.set(meetingId, meeting)
-    socket.join(meetingId) // room 
+      meeting.participants.push({
+        id: socket.id,
+        name: username,
+        joinedAt: new Date()
+      })
 
-    meeting.participants.push({
-      id: socket.id,
-      name: creatorName,
-      joinedAt: new Date()
-    })
-
-    socket.emit("meeting-created", { meetingId, meeting })
-    console.log("Meeting created ->  " + meetingId)
-  })
-
-  // channel to join meeting 
-  socket.on("join-meeting", (data) => {
-    const { meetingId, userName } = data
-    const meeting = meetings.get(meetingId)
-
-    if (!meeting) {
-      socket.emit("meeting-not-found")
+      if (meeting.participants.length >= 2) {
+        meeting.status = MEETING_STATUS.CONNECTED
+      }
+      socket.to(roomId).emit('user-joined', { userId: socket.id, username });
+      console.log(`User ${socket.id} joined room ${roomId}`);
+      console.log(meeting)
       return
     }
 
-    // Check if meeting is still valid
-    const now = new Date();
-    const scheduledTime = new Date(meeting.scheduledTime);
-    const timeDiff = Math.abs(now - scheduledTime);
-    const minutesDiff = Math.floor(timeDiff / 60000);
-
-    // Allow 5 minutes flexibility around scheduled time
-    if (minutesDiff > 5 && meeting.status === 'scheduled') {
-      socket.emit('meeting-expired');
-      return;
+    meeting = {
+      roomId,
+      id: socket.id,
+      creator: username,
+      createdAt: new Date(),
+      status: MEETING_STATUS.CREATED,
+      participants: []
     }
-
-    socket.join(meetingId) // join to the room 
 
     meeting.participants.push({
       id: socket.id,
-      name: userName,
+      name: username,
       joinedAt: new Date()
     })
 
-    if (meeting.participants.length >= 2) {
-      meeting.status = "active"
-    }
+    meetings.set(roomId, meeting)
 
-    // io.on emit to all user in a room even the event person generator 
-    io.to(meetingId).emit("participant-joined", {
-      participant: { id: socket.id, name: userName },
-      participants: meeting.participants
-    })
+    socket.join(roomId); // Room
+    socket.emit("meeting-creted", { meeting })
 
-    socket.emit("meeting-joined", { meeting }) // emit only to the event person generator 
-
-  })
-
-
-  // WebRTC signaling
-  socket.on('offer', (data) => {
-    const { meetingId, offer, sender } = data;
-    socket.to(meetingId).emit('offer', { offer, sender });
-  });
-
-  socket.on('answer', (data) => {
-    const { meetingId, answer, sender } = data;
-    socket.to(meetingId).emit('answer', { answer, sender });
-  });
-
-  socket.on('ice-candidate', (data) => {
-    const { meetingId, candidate, sender } = data;
-    socket.to(meetingId).emit('ice-candidate', { candidate, sender });
+    console.log("meeting created by ", username)
+    console.log(meeting)
   });
 
 
-  socket.on("disconnect", () => {
+  socket.on('offer', ({ sender, offer, to }) => {
+    console.log(`Sending offer from ${socket.id} to ${to}`);
+    io.to(to).emit('offer', { offer, from: socket.id, sender });
+  });
+
+  socket.on('answer', ({ answer, to, sender }) => {
+    console.log(`Sending answer from ${socket.id} to ${to}`);
+    io.to(to).emit('answer', { answer, from: socket.id, sender });
+  });
+
+  socket.on('ice-candidate', ({ candidate, to, sender }) => {
+    console.log(`Sending ICE candidate from ${socket.id} to ${to}`);
+    io.to(to).emit('ice-candidate', { candidate, from: socket.id, sender });
+  });
+
+  socket.on('send-message', ({ roomId, message, username, senderId }) => {
+    console.log(`Message from ${username} (${senderId}) in room ${roomId}: ${message}`);
+    // Broadcast message to all participants in the room except the sender
+    socket.to(roomId).emit('message', {
+      message,
+      username,
+      senderId,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  socket.on('disconnect', (reason) => {
     console.log("User Disconnected -> " + socket.id)
+    console.log("Reason:", reason);
 
     meetings.forEach((meeting, meetingId) => {
-      const indexOfParticipant = meeting.participants.findIndex(p => p.id === socket.id);
+      const indexOfParticipantLeft = meeting.participants.findIndex(p => p.id === socket.id);
 
-      if (indexOfParticipant !== -1) {
-        meeting.participants.splice(indexOfParticipant, 1); // remove the participant into the participants array 
+      if (indexOfParticipantLeft !== -1) {
 
-        // notify all user in the room that one use is leave the meeting 
+        const username = meeting.participants[indexOfParticipantLeft].name
+        meeting.participants.splice(indexOfParticipantLeft, 1);
+
         io.to(meetingId).emit("participant-left", {
           participantId: socket.id,
-          participants: meeting.participants.length
+          participants: meeting.participants.length,
+          username
         })
-
-        // if everybody letf the room or the meeting, clean up the meeting room 
 
         if (meeting.participants.length === 0) {
           setTimeout(() => {
@@ -143,15 +153,13 @@ io.on("connection", (socket) => {
         }
       }
     })
-  })
 
-})
+  });
 
 
-function generateMeetingId() {
-  return Math.random().toString(30).substring(2).toUpperCase();
-}
+});
 
+const PORT = process.env.SERVER_PORT || 5000;
 server.listen(PORT, () => {
-  console.log("Server listen on " + PORT)
-})
+  console.log(`Server running on http://localhost:${PORT}`);
+});

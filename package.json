@@ -4,8 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start":"node index.js",
-    "dev": "nodemon index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "cd client && npm install && npm run build",
+    "install-client": "cd client && npm install",
+    "build-client": "cd client && npm run build"
   },
   "keywords": [],
   "author": "",
